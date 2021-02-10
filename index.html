@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Тестовое задание</title>
+</head>
+<style>
+  .search {
+    margin-bottom: 5px;
+  }
+  .editor {
+    height: 100px;
+    overflow: auto;
+  }
+  body > .search, body > .editor {
+    width: 300px;
+    border: solid 1px black;
+    position: relative;
+    border-radius: 5px;
+    padding: 5px;
+  }
+  .highlight {
+    position: absolute;
+    background-color: yellow;
+    z-index: -1;
+  }
+</style>
+<body>
+  <input id="search" type="text" class="search" placeholder="Search for...">
+  <div id="editor" contenteditable="true" class="editor">Текст в котором будет осуществляться поиск</div>
+</body>
+<script>
+  const search = document.getElementById("search")
+  const editor = document.getElementById("editor")
+  const highlightClassName = "highlight"
+    
+  search.addEventListener("input", highlightMatchesInEditor)
+  editor.addEventListener("input", highlightMatchesInEditor)
+    
+  function highlightMatchesInEditor() {
+    removeAllHighlightDivs()
+    if (!search.value) {
+      return
+    }
+    
+    let searchRegExp = RegExp(search.value, "g")
+    let searchLength = search.value.length
+    
+    let iter = iterateNode(editor)
+    let node = iter.next()
+    // find matches in each text node of the editor
+    while (!node.done) {
+      while (match = searchRegExp.exec(replaceNbspsWithSpaces(node.value.textContent))) {
+        range = new Range()
+        range.setStart(node.value, match.index)
+        range.setEnd(node.value, match.index + searchLength)
+        addHighlightDivs(range.getClientRects())
+      }
+      node = iter.next()
+    }
+  }
+    
+  /**
+   * Replace &nbsp; (usually appearing instead of space
+   * at the end of text content of a tag) with space.
+   * Use for searching correct matches.
+   */
+  function replaceNbspsWithSpaces(str) {
+    var r = RegExp(String.fromCharCode(160), "g");
+    return str.replace(r, String.fromCharCode(32));
+  }
+
+  /** Generator for text nodes inside node. */
+  function* iterateNode(node) {
+    let childNodes = node.childNodes;
+    for (let i = 0; i < childNodes.length; i++) {
+      let childNode = childNodes[i]
+      if (childNode.nodeType === Node.TEXT_NODE) {
+        yield childNode;
+      } else {
+        yield* iterateNode(childNode);
+      }
+    }
+  }
+
+  /** Append highlight rectangles. */
+  function addHighlightDivs(rects) {
+    for (let i = 0; i < rects.length; i++) {
+      let rect = rects[i];
+      let highlightDiv = document.createElement("div")
+      // append it to editor so that it won't shift when scrolling
+      editor.appendChild(highlightDiv)
+      highlightDiv.classList.add(highlightClassName)
+      // define borders of highlight
+      highlightDiv.style.top = `${rect.y + editor.scrollTop - editor.offsetTop}px`
+      highlightDiv.style.left = `${rect.x - editor.offsetLeft}px`
+      highlightDiv.style.height = `${rect.height}px`
+      highlightDiv.style.width = `${rect.width}px`
+    }
+  }
+
+  /** Remove all highlight rectangles. */
+  function removeAllHighlightDivs() {
+    let highlightsDivs = document.querySelectorAll(`.${highlightClassName}`);
+    highlightsDivs.forEach(hl => { hl.remove() })
+  }
+    
+</script>
+</html>
